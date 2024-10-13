@@ -1,0 +1,20 @@
+repos:
+  # Linting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        types: [python]
+        args: [--fix]
+  # Formatting
+  - repo: https://github.com/ambv/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        types: [python]
+  # Yaml formatting
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.29.0
+    hooks:
+      - id: yamllint
+        args: [--format, parsable, --strict, -c=.yamllint.yml]
