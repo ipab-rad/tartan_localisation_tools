@@ -1,10 +1,20 @@
-## Docker commands to build/run the script (should easily adapt to other ros distro that provide the messages)
+# Uncertainty mapping visualisation
 
-# TODO: make this into a Dockerfile to build/run?
-docker run -it --network host -v `pwd`/:/data ros:iron
-sudo apt-get update && sudo apt-get install ros-humble-novatel-gps-msgs ros-iron-novatel-gps-msgs python3-pip
-pip install folium
+This component processes input mcap (ROSbags) and produces a map.html file.
+Opening the map.html file in a browser shows the AV GPS trace and draws ellipses
+representing the covariance (uncertainty) of the AV location.
 
-# Example usage
-python3 ./draw_uncertainty --input-bags data/2024_07_30-16_30_10_sensor_recording_0.mcap data/2024_07_30-16_30_10_sensor_recording_19.mcap --output-filename map.html
+## Usage
+Run script to build docker image and access interactive container:
 
+```
+./dev.sh -p /path/to/mcap
+```
+
+Then inside the container:
+
+```
+python3 ./src/uncertainty_mapping/draw_uncertainty.py \
+--input-bags rosbags/example.mcap \
+--output-filename output/example.html
+```
