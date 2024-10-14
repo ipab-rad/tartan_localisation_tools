@@ -61,5 +61,6 @@ docker run -it --rm --net host \
     -v /dev:/dev \
     -v /tmp:/tmp \
     -v /etc/localtime:/etc/localtime:ro \
+    -v ./output:/opt/ros_ws/output \
     -v $ROSBAGS_DIR:/opt/ros_ws/rosbags \
     tartan_localisation_tools:latest $CMD
