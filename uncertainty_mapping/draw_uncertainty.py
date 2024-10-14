@@ -54,7 +54,9 @@ def generate_ellipse_points(center, width, height, angle, num_points=100):
     ellipse_points = np.array([width * np.cos(t), height * np.sin(t)]).T
 
     # Rotate points by the given angle
-    R = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    R = np.array(
+        [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
+    )
     rotated_points = np.dot(ellipse_points, R)
 
     # Translate points to the center
@@ -74,7 +76,9 @@ def draw_uncertainty_ellipse(
 ):
     """Draw an ellipse of uncertainty on a folium map."""
     # Convert uncertainty from meters to degrees (approximate)
-    lat_per_meter = 1 / 111320  # One degree of latitude is approximately 111.32 km
+    lat_per_meter = (
+        1 / 111320
+    )  # One degree of latitude is approximately 111.32 km
     lon_per_meter = 1 / (
         40075000 * np.cos(np.radians(center[0])) / 360
     )  # One degree of longitude varies based on latitude
@@ -138,7 +142,9 @@ def filter_points(points, min_distance=3):
 
     for point in points[1:]:
         last_point = filtered_points[-1]
-        distance = haversine(last_point.lat, last_point.lon, point.lat, point.lon)
+        distance = haversine(
+            last_point.lat, last_point.lon, point.lat, point.lon
+        )
         if distance >= min_distance:
             filtered_points.append(point)
 
@@ -187,4 +193,4 @@ if __name__ == "__main__":
         )
 
     # Save the map to an HTML file
-    m.save("map.html")
+    m.save(args.output_filename)
