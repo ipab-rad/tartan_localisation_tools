@@ -6,16 +6,7 @@ import math
 from dataclasses import dataclass
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
-
-
-@dataclass
-class GpsPoint:
-    """Class for keeping track of an item in inventory."""
-
-    lat: float
-    lon: float
-    x_uncertainty: float
-    y_uncertainty: float
+from novatel_gps_msgs.msg import NovatelPosition
 
 
 def extract_gps_traces(bag_path, topic_name):
@@ -104,13 +95,13 @@ def draw_uncertainty_ellipse(
     ).add_to(m)
 
 
-# Assumed to be Novatel BESTPOS.msg    https://github.com/novatel/novatel_oem7_driver/blob/master/src/novatel_oem7_msgs/msg/BESTPOS.msg
+# https://github.com/swri-robotics/novatel_gps_driver/blob/ros2-devel/novatel_gps_msgs/msg/NovatelPosition.msg
 def convert_trace(gps_pos):
-    return GpsPoint(
+    return NovatelPosition(
         lat=gps_pos.lat,
         lon=gps_pos.lon,
-        x_uncertainty=gps_pos.lon_sigma,
-        y_uncertainty=gps_pos.lat_sigma,
+        lon_sigma=gps_pos.lon_sigma,
+        lat_sigma=gps_pos.lat_sigma,
     )
 
 
@@ -189,7 +180,7 @@ if __name__ == "__main__":
             fill_opacity=1,
         ).add_to(m)
         draw_uncertainty_ellipse(
-            m, (pt.lat, pt.lon), pt.x_uncertainty, pt.y_uncertainty
+            m, (pt.lat, pt.lon), pt.lon_sigma, pt.lat_sigma
         )
 
     # Save the map to an HTML file
