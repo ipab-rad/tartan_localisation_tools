@@ -8,7 +8,7 @@ representing the covariance (uncertainty) of the AV location.
 Run script to build docker image and access interactive container:
 
 ```
-./dev.sh -p /path/to/mcap
+./dev.sh -p /path/to/your/rosbags
 ```
 
 Then inside the container:

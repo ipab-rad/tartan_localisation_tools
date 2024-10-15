@@ -13,7 +13,7 @@ Usage: dev.sh [-b|bash] [--path | -p ] [-h|--help]
 Where:
     -b | bash       Open bash in docker container (Default in dev.sh)
     -p | --path   ROSBAGS_DIR_PATH
-                    Specify path to store recorded rosbags
+                    Specify path for script to access mcap rosbags
     -h | --help     Show this help message
     "
     exit 1
@@ -47,7 +47,7 @@ done
 
 # Verify ROSBAGS_DIR exists
 if [ ! -d "$ROSBAGS_DIR" ]; then
-    echo "$ROSBAGS_DIR does not exist! Please provide a valid path to store rosbags"
+    echo "$ROSBAGS_DIR does not exist! Please provide a valid path with mcap files"
     exit 1
 fi
 
