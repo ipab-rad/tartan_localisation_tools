@@ -1,0 +1,100 @@
+repos:
+  # Standard hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-xml
+      - id: check-yaml
+      - id: debug-statements
+      - id: end-of-file-fixer
+        exclude_types: [html]
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+        exclude_types: [rst, html]
+      - id: fix-byte-order-marker
+
+  # Python hooks
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.17.0
+    hooks:
+      - id: pyupgrade
+        args: [--py36-plus]
+
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        args: ["--line-length=79", -S]
+
+  # Yaml formatting
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.29.0
+    hooks:
+      - id: yamllint
+        args: [--format, parsable, --strict, -c=.yamllint.yml]
+
+  # Docs - RestructuredText hooks
+  - repo: https://github.com/PyCQA/doc8
+    rev: v1.1.2
+    hooks:
+      - id: doc8
+        args: ['--max-line-length=100', '--ignore=D001']
+        exclude: CHANGELOG\.rst$
+
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: rst-backticks
+        exclude: CHANGELOG\.rst$
+      - id: rst-directive-colons
+      - id: rst-inline-touching-normal
+
+  # Spellcheck in comments and docs
+  # skipping of *.svg files is not working...
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        args: ['--write-changes', '--uri-ignore-words-list=ist', '-L manuel']
+        exclude: CHANGELOG\.rst|\.(svg|pyc|drawio|dae)$
+
+  # Check Github files
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.29.2
+    hooks:
+      - id: check-github-workflows
+        args: ["--verbose"]
+      - id: check-github-actions
+        args: ["--verbose"]
+      - id: check-dependabot
+        args: ["--verbose"]
+
+  # Bash prettify
+  - repo: https://github.com/lovesegfault/beautysh
+    rev: v6.2.1
+    hooks:
+      - id: beautysh
+
+  # Dockerfiles
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.12.1b3
+    hooks:
+      - id: hadolint
+        args: ['--ignore=DL3008', '--ignore=DL3013']
+
+ci:
+  autofix_commit_msg: |
+      [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+      for more information, see https://pre-commit.ci
+  autofix_prs: false
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: monthly
+  submodules: false
