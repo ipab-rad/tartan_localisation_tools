@@ -1,3 +1,4 @@
+import os
 import argparse
 import rosbag2_py
 import folium
@@ -26,7 +27,7 @@ def extract_gps_traces(bag_path, topic_name):
         print(f"Topic '{topic_name}' not found in the bag.")
         return []
 
-    print(f"Reading messages from topic '{topic_name}':")
+    print(f"Reading messages from: {bag_path} ")
 
     traces = []
     msg_type = get_message(topic_type_dict[topic_name])
@@ -148,15 +149,33 @@ if __name__ == "__main__":
         prog="uncertainty_mapper",
         description="Draws gps uncertainty onto a map to help indicate poor GPS locations/performance visually",
     )
-    parser.add_argument("--input-bags", "-I", nargs="+")
-    parser.add_argument("--output-filename", "-O", default="map.html")
+    parser.add_argument("--input-bags-dir", "-I", required=True)
+    parser.add_argument("--output-filename", "-O", default="map")
 
     args = parser.parse_args()
 
+    input_path = args.input_bags_dir
+    mcap_path_list = []
+    if os.path.isdir(input_path):
+        # Get all .mcap files in the directory
+        for file_name in sorted(os.listdir(input_path)):
+            if file_name.endswith('.mcap'):
+                mcap_path = os.path.join(input_path, file_name)
+                mcap_path_list.append(mcap_path)
+    elif os.path.isfile(input_path) and input_path.endswith('.mcap'):
+        mcap_path_list.append(input_path)
+    else:
+        print('The input path is not a valid .mcap file or directory')
+
+    print(f'Found {len(mcap_path_list)} mcap files')
+
+    TOPIC_NAME = "/sensor/gps/bestpos"
+    print(f"Searching for '{TOPIC_NAME}' messages...")
+
     gps_traces = []
-    for path in args.input_bags:
+    for mcap_path in mcap_path_list:
         gps_traces.extend(
-            extract_gps_traces(bag_path=path, topic_name="/sensor/gps/bestpos")
+            extract_gps_traces(bag_path=mcap_path, topic_name=TOPIC_NAME)
         )
 
     assert len(gps_traces) > 1, "No GPS traces present in bag"
@@ -184,4 +203,4 @@ if __name__ == "__main__":
         )
 
     # Save the map to an HTML file
-    m.save(args.output_filename)
+    m.save("output/" + args.output_filename + ".html")
