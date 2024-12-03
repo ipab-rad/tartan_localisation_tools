@@ -19,4 +19,4 @@ python3 ./src/uncertainty_mapping/draw_uncertainty.py \
 --output-filename my_map  # .html ext will be added automatically
 ```
 
-You can then inspect the [map.html](https://rawcdn.githack.com/ipab-rad/tartan_localisation_tools/5bc4769e66d4e77dd4af6ef17a22d37680c68df0/output/map.html) with your browser
+Once the script completes, the generated `.html` file will be located in the `output` directory. You can open it in your browser to view the map. For more information, refer to the [map.html](../data/map.html) example.

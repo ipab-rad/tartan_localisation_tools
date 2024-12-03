@@ -56,6 +56,9 @@ DOCKER_BUILDKIT=1 docker build \
     -t tartan_localisation_tools:latest \
     -f Dockerfile --target runtime .
 
+# Create directory to save generated maps
+mkdir -p ./output
+
 # Run docker image without volumes
 docker run -it --rm --net host \
     -v /dev:/dev \
