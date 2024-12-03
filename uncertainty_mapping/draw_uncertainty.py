@@ -1,5 +1,6 @@
 import os
 import argparse
+import re
 import rosbag2_py
 import folium
 import numpy as np
@@ -26,8 +27,6 @@ def extract_gps_traces(bag_path, topic_name):
     if topic_name not in topic_type_dict:
         print(f"Topic '{topic_name}' not found in the bag.")
         return []
-
-    print(f"Reading messages from: {bag_path} ")
 
     traces = []
     msg_type = get_message(topic_type_dict[topic_name])
@@ -143,6 +142,16 @@ def filter_points(points, min_distance=3):
     return filtered_points
 
 
+def sort_by_numeric_suffix(files):
+    def extract_number(file):
+        match = re.search(r"_(\d+)\.mcap$", file)
+        return (
+            int(match.group(1)) if match else float('inf')
+        )  # Non-matching files go to the end
+
+    return sorted(files, key=extract_number)
+
+
 if __name__ == "__main__":
     # Assume all bags belong to the same drive
     parser = argparse.ArgumentParser(
@@ -167,16 +176,23 @@ if __name__ == "__main__":
     else:
         print('The input path is not a valid .mcap file or directory')
 
-    print(f'Found {len(mcap_path_list)} mcap files')
+    mcap_path_list = sort_by_numeric_suffix(mcap_path_list)
+
+    total_rosbags = len(mcap_path_list)
+
+    print(f'\nFound {total_rosbags} rosbags files\n')
 
     TOPIC_NAME = "/sensor/gps/bestpos"
-    print(f"Searching for '{TOPIC_NAME}' messages...")
+    print(f"Script will search for GPS information in '{TOPIC_NAME}' topic\n")
 
     gps_traces = []
+    idx = 0
     for mcap_path in mcap_path_list:
+        print(f'\r{idx}/{total_rosbags} rosbags processed', end='', flush=True)
         gps_traces.extend(
             extract_gps_traces(bag_path=mcap_path, topic_name=TOPIC_NAME)
         )
+        idx += 1
 
     assert len(gps_traces) > 1, "No GPS traces present in bag"
 
