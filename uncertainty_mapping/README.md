@@ -7,16 +7,16 @@ representing the covariance (uncertainty) of the AV location.
 ## Usage
 Run script to build docker image and access interactive container:
 
-```
+```bash
 ./dev.sh -p /path/to/your/rosbags
 ```
 
 Then inside the container:
 
-```
+``` bash
 python3 ./src/uncertainty_mapping/draw_uncertainty.py \
---input-bags rosbags/example.mcap \
---output-filename output/example.html
+--input-bags rosbags/my_rosbags_dir \
+--output-filename my_map  # .html ext will be added automatically
 ```
 
 You can then inspect the [map.html](https://rawcdn.githack.com/ipab-rad/tartan_localisation_tools/5bc4769e66d4e77dd4af6ef17a22d37680c68df0/output/map.html) with your browser
