@@ -15,7 +15,7 @@ Then inside the container:
 
 ``` bash
 python3 ./src/uncertainty_mapping/draw_uncertainty.py \
---input-bags rosbags/my_rosbags_dir \
+--input-bags-dir rosbags/my_rosbags_dir \
 --output-filename my_map  # .html ext will be added automatically
 ```
 
