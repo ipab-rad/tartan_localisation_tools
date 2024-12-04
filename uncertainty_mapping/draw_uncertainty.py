@@ -1,6 +1,7 @@
 import os
 import argparse
 import re
+import time
 import rosbag2_py
 import folium
 import numpy as np
@@ -152,6 +153,22 @@ def sort_by_numeric_suffix(files):
     return sorted(files, key=extract_number)
 
 
+def print_elapsed_time(elapsed_time, total_rosbags):
+    hours, rem = divmod(elapsed_time, 3600)
+    minutes, seconds = divmod(rem, 60)
+
+    if hours >= 1:
+        print(
+            f"\n{total_rosbags} rosbags processed in {int(hours)}h {int(minutes)}m {int(seconds)}s\n"
+        )
+    elif minutes >= 1:
+        print(
+            f"\n{total_rosbags} rosbags processed in {int(minutes)}m {int(seconds)}s\n"
+        )
+    else:
+        print(f"\n{total_rosbags} rosbags processed in {int(seconds)}s\n")
+
+
 if __name__ == "__main__":
     # Assume all bags belong to the same drive
     parser = argparse.ArgumentParser(
@@ -187,6 +204,7 @@ if __name__ == "__main__":
 
     gps_traces = []
     idx = 0
+    start_t = time.time()
     for mcap_path in mcap_path_list:
         print(f'\r{idx}/{total_rosbags} rosbags processed', end='', flush=True)
         gps_traces.extend(
@@ -220,3 +238,6 @@ if __name__ == "__main__":
 
     # Save the map to an HTML file
     m.save("output/" + args.output_filename + ".html")
+
+    elapsed_time_sec = time.time() - start_t
+    print_elapsed_time(elapsed_time_sec, total_rosbags)
