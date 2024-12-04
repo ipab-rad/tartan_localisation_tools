@@ -157,16 +157,16 @@ def print_elapsed_time(elapsed_time, total_rosbags):
     hours, rem = divmod(elapsed_time, 3600)
     minutes, seconds = divmod(rem, 60)
 
+    prompt = f"\nGPS uncertainty map created in "
     if hours >= 1:
-        print(
-            f"\n{total_rosbags} rosbags processed in {int(hours)}h {int(minutes)}m {int(seconds)}s\n"
-        )
+        prompt += f"{int(hours)}h {int(minutes)}m {int(seconds)}s\n"
+
     elif minutes >= 1:
-        print(
-            f"\n{total_rosbags} rosbags processed in {int(minutes)}m {int(seconds)}s\n"
-        )
+        prompt += f"{int(minutes)}m {int(seconds)}s\n"
     else:
-        print(f"\n{total_rosbags} rosbags processed in {int(seconds)}s\n")
+        prompt += f"{int(seconds)}s\n"
+
+    print(prompt)
 
 
 if __name__ == "__main__":
@@ -205,12 +205,16 @@ if __name__ == "__main__":
     gps_traces = []
     idx = 0
     start_t = time.time()
+    print(f'\r{idx}/{total_rosbags} rosbags processed', end='', flush=True)
     for mcap_path in mcap_path_list:
-        print(f'\r{idx}/{total_rosbags} rosbags processed', end='', flush=True)
         gps_traces.extend(
             extract_gps_traces(bag_path=mcap_path, topic_name=TOPIC_NAME)
         )
         idx += 1
+        end = '' if idx < total_rosbags else '\n'
+        print(
+            f'\r{idx}/{total_rosbags} rosbags processed', end=end, flush=True
+        )
 
     assert len(gps_traces) > 1, "No GPS traces present in bag"
 
@@ -238,6 +242,5 @@ if __name__ == "__main__":
 
     # Save the map to an HTML file
     m.save("output/" + args.output_filename + ".html")
-
     elapsed_time_sec = time.time() - start_t
     print_elapsed_time(elapsed_time_sec, total_rosbags)
