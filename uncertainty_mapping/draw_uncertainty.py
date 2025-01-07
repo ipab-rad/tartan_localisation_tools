@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import argparse
 import re
@@ -241,6 +243,6 @@ if __name__ == "__main__":
         )
 
     # Save the map to an HTML file
-    m.save("output/" + args.output_filename + ".html")
+    m.save(args.output_filename)
     elapsed_time_sec = time.time() - start_t
     print_elapsed_time(elapsed_time_sec, total_rosbags)

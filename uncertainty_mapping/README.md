@@ -14,9 +14,15 @@ Run script to build docker image and access interactive container:
 Then inside the container:
 
 ``` bash
-python3 ./src/uncertainty_mapping/draw_uncertainty.py \
+draw_uncertainty.py \
 --input-bags-dir rosbags/my_rosbags_dir \
---output-filename my_map  # .html ext will be added automatically
+--output-filename output/<my_map>.html
 ```
 
-Once the script completes, the generated `.html` file will be located in the `output` directory. You can open it in your browser to view the map. For more information, refer to the [map.html](../data/map.html) example.
+#### Important notes
+
+- The `--output-filename` parameter should start with `output/` when running the script in the Docker container to ensure the `.html` file is saved correctly. This is not required when running the script locally.
+
+- Replace `<my_map>` with your desired filename (without brackets).
+
+Once the script completes, the generated `.html` file will be located in your local `output` directory. You can open it in your browser to view the map. For more information, refer to the [map.html](../data/map.html) example.
