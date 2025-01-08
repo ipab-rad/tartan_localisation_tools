@@ -56,6 +56,9 @@ DOCKER_BUILDKIT=1 docker build \
     -t tartan_localisation_tools:latest-dev \
     -f Dockerfile --target dev .
 
+# Create directory to save generated maps
+mkdir -p ./output
+
 # Run docker image with local code volumes for development
 docker run -it --rm --net host \
     -v /dev:/dev \

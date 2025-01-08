@@ -26,12 +26,12 @@ WORKDIR $ROS_WS
 # Enable ROS log colorised output
 ENV RCUTILS_COLORIZED_OUTPUT=1
 
+# Import code from local files
+COPY . .
+
 # -----------------------------------------------------------------------
 
 FROM base AS prebuilt
-
-# Import code from repos
-COPY . src/
 
 # Source ROS setup for dependencies and build our code
 RUN . /opt/ros/"$ROS_DISTRO"/setup.sh \
@@ -59,6 +59,8 @@ RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc && \
     echo 'alias colcon_build="colcon build --symlink-install \
             --cmake-args -DCMAKE_BUILD_TYPE=Release && \
             source install/setup.bash"' >> /root/.bashrc
+
+RUN echo "export PATH=$ROS_WS/src/uncertainty_mapping:$PATH" >> /root/.bashrc
 
 # Enter bash for clvelopment
 CMD ["bash"]

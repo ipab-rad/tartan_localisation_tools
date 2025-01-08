@@ -1,4 +1,9 @@
+#!/usr/bin/env python3
+
+import os
 import argparse
+import re
+import time
 import rosbag2_py
 import folium
 import numpy as np
@@ -25,8 +30,6 @@ def extract_gps_traces(bag_path, topic_name):
     if topic_name not in topic_type_dict:
         print(f"Topic '{topic_name}' not found in the bag.")
         return []
-
-    print(f"Reading messages from topic '{topic_name}':")
 
     traces = []
     msg_type = get_message(topic_type_dict[topic_name])
@@ -142,21 +145,77 @@ def filter_points(points, min_distance=3):
     return filtered_points
 
 
+def sort_by_numeric_suffix(files):
+    def extract_number(file):
+        match = re.search(r"_(\d+)\.mcap$", file)
+        return (
+            int(match.group(1)) if match else float('inf')
+        )  # Non-matching files go to the end
+
+    return sorted(files, key=extract_number)
+
+
+def print_elapsed_time(elapsed_time, total_rosbags):
+    hours, rem = divmod(elapsed_time, 3600)
+    minutes, seconds = divmod(rem, 60)
+
+    prompt = f"\nGPS uncertainty map created in "
+    if hours >= 1:
+        prompt += f"{int(hours)}h {int(minutes)}m {int(seconds)}s\n"
+
+    elif minutes >= 1:
+        prompt += f"{int(minutes)}m {int(seconds)}s\n"
+    else:
+        prompt += f"{int(seconds)}s\n"
+
+    print(prompt)
+
+
 if __name__ == "__main__":
     # Assume all bags belong to the same drive
     parser = argparse.ArgumentParser(
         prog="uncertainty_mapper",
         description="Draws gps uncertainty onto a map to help indicate poor GPS locations/performance visually",
     )
-    parser.add_argument("--input-bags", "-I", nargs="+")
-    parser.add_argument("--output-filename", "-O", default="map.html")
+    parser.add_argument("--input-bags-dir", "-I", required=True)
+    parser.add_argument("--output-filename", "-O", default="map")
 
     args = parser.parse_args()
 
+    input_path = args.input_bags_dir
+    mcap_path_list = []
+    if os.path.isdir(input_path):
+        # Get all .mcap files in the directory
+        for file_name in sorted(os.listdir(input_path)):
+            if file_name.endswith('.mcap'):
+                mcap_path = os.path.join(input_path, file_name)
+                mcap_path_list.append(mcap_path)
+    elif os.path.isfile(input_path) and input_path.endswith('.mcap'):
+        mcap_path_list.append(input_path)
+    else:
+        print('The input path is not a valid .mcap file or directory')
+
+    mcap_path_list = sort_by_numeric_suffix(mcap_path_list)
+
+    total_rosbags = len(mcap_path_list)
+
+    print(f'\nFound {total_rosbags} rosbags files\n')
+
+    TOPIC_NAME = "/sensor/gps/bestpos"
+    print(f"Script will search for GPS information in '{TOPIC_NAME}' topic\n")
+
     gps_traces = []
-    for path in args.input_bags:
+    idx = 0
+    start_t = time.time()
+    print(f'\r{idx}/{total_rosbags} rosbags processed', end='', flush=True)
+    for mcap_path in mcap_path_list:
         gps_traces.extend(
-            extract_gps_traces(bag_path=path, topic_name="/sensor/gps/bestpos")
+            extract_gps_traces(bag_path=mcap_path, topic_name=TOPIC_NAME)
+        )
+        idx += 1
+        end = '' if idx < total_rosbags else '\n'
+        print(
+            f'\r{idx}/{total_rosbags} rosbags processed', end=end, flush=True
         )
 
     assert len(gps_traces) > 1, "No GPS traces present in bag"
@@ -185,3 +244,5 @@ if __name__ == "__main__":
 
     # Save the map to an HTML file
     m.save(args.output_filename)
+    elapsed_time_sec = time.time() - start_t
+    print_elapsed_time(elapsed_time_sec, total_rosbags)
