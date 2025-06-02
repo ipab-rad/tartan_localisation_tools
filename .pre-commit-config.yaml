@@ -21,7 +21,7 @@ repos:
 
   # Python hooks
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.1
+    rev: v3.20.0
     hooks:
       - id: pyupgrade
         args: [--py36-plus]
@@ -34,7 +34,7 @@ repos:
 
   # Yaml formatting
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.37.0
+    rev: v1.37.1
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict, -c=.yamllint.yml]
