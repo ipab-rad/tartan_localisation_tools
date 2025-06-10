@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
 from novatel_gps_msgs.msg import NovatelPosition
+from multiprocessing import Pool
+from functools import partial
 
 
 def extract_gps_traces(bag_path, topic_name):
@@ -31,13 +33,15 @@ def extract_gps_traces(bag_path, topic_name):
         print(f"Topic '{topic_name}' not found in the bag.")
         return []
 
-    traces = []
     msg_type = get_message(topic_type_dict[topic_name])
+
+    traces = []
     while reader.has_next():
         (topic, data, timestamp) = reader.read_next()
         if topic == topic_name:
             # Assuming the message type is a plain string
             traces.append(deserialize_message(data, msg_type))
+
     return traces
 
 
@@ -67,12 +71,10 @@ def draw_uncertainty_ellipse(
     color="grey",
     fill_color="grey",
     fill_opacity=0.2,
+    lat_per_meter=1 / 111320,
 ):
     """Draw an ellipse of uncertainty on a folium map."""
     # Convert uncertainty from meters to degrees (approximate)
-    lat_per_meter = (
-        1 / 111320
-    )  # One degree of latitude is approximately 111.32 km
     lon_per_meter = 1 / (
         40075000 * np.cos(np.radians(center[0])) / 360
     )  # One degree of longitude varies based on latitude
@@ -171,6 +173,11 @@ def print_elapsed_time(elapsed_time, total_rosbags):
     print(prompt)
 
 
+def process_bag(mcap_path, topic_name):
+    """Extract GPS traces from a single bag file."""
+    return list(extract_gps_traces(bag_path=mcap_path, topic_name=topic_name))
+
+
 if __name__ == "__main__":
     # Assume all bags belong to the same drive
     parser = argparse.ArgumentParser(
@@ -186,10 +193,9 @@ if __name__ == "__main__":
     mcap_path_list = []
     if os.path.isdir(input_path):
         # Get all .mcap files in the directory
-        for file_name in sorted(os.listdir(input_path)):
-            if file_name.endswith('.mcap'):
-                mcap_path = os.path.join(input_path, file_name)
-                mcap_path_list.append(mcap_path)
+        for entry in os.scandir(input_path):
+            if entry.is_file() and entry.name.endswith('.mcap'):
+                mcap_path_list.append(entry.path)
     elif os.path.isfile(input_path) and input_path.endswith('.mcap'):
         mcap_path_list.append(input_path)
     else:
@@ -207,16 +213,12 @@ if __name__ == "__main__":
     gps_traces = []
     idx = 0
     start_t = time.time()
-    print(f'\r{idx}/{total_rosbags} rosbags processed', end='', flush=True)
-    for mcap_path in mcap_path_list:
-        gps_traces.extend(
-            extract_gps_traces(bag_path=mcap_path, topic_name=TOPIC_NAME)
-        )
-        idx += 1
-        end = '' if idx < total_rosbags else '\n'
-        print(
-            f'\r{idx}/{total_rosbags} rosbags processed', end=end, flush=True
-        )
+
+    with Pool() as pool:
+        process_bag_with_topic = partial(process_bag, topic_name=TOPIC_NAME)
+        results = pool.map(process_bag_with_topic, mcap_path_list)
+
+    gps_traces = [trace for result in results for trace in result]
 
     assert len(gps_traces) > 1, "No GPS traces present in bag"
 
@@ -226,6 +228,9 @@ if __name__ == "__main__":
     # Add first point
     first_point = convert_trace(gps_traces[0])
     m = folium.Map(location=(first_point.lat, first_point.lon), zoom_start=10)
+
+    # Precompute lat_per_meter constant
+    lat_per_meter = 1 / 111320
 
     # Add ellipses and markers for each coordinate
     for trace in gps_traces:
@@ -239,7 +244,11 @@ if __name__ == "__main__":
             fill_opacity=1,
         ).add_to(m)
         draw_uncertainty_ellipse(
-            m, (pt.lat, pt.lon), pt.lon_sigma, pt.lat_sigma
+            m,
+            (pt.lat, pt.lon),
+            pt.lon_sigma,
+            pt.lat_sigma,
+            lat_per_meter=lat_per_meter,
         )
 
     # Save the map to an HTML file
