@@ -137,9 +137,10 @@ def filter_points(points, min_distance=3):
     filtered_points = [points[0]]
 
     for point in points[1:]:
-        last_point = filtered_points[-1]
+        last_trace, _ = filtered_points[-1]
+        curr_trace, _ = point
         distance = haversine(
-            last_point.lat, last_point.lon, point.lat, point.lon
+            last_trace.lat, last_trace.lon, curr_trace.lat, curr_trace.lon
         )
         if distance >= min_distance:
             filtered_points.append(point)
@@ -175,7 +176,14 @@ def print_elapsed_time(elapsed_time, total_rosbags):
 
 def process_bag(mcap_path, topic_name):
     """Extract GPS traces from a single bag file."""
-    return list(extract_gps_traces(bag_path=mcap_path, topic_name=topic_name))
+    bag_name = os.path.basename(mcap_path)
+    # Attach bag_number to each trace
+    return [
+        (t, bag_name)
+        for t in list(
+            extract_gps_traces(bag_path=mcap_path, topic_name=topic_name)
+        )
+    ]
 
 
 if __name__ == "__main__":
@@ -210,13 +218,22 @@ if __name__ == "__main__":
     TOPIC_NAME = "/sensor/gps/bestpos"
     print(f"Script will search for GPS information in '{TOPIC_NAME}' topic\n")
 
-    gps_traces = []
-    idx = 0
+    def process_bag_with_number(args):
+        mcap_path, topic_name, bag_number = args
+        traces = process_bag(mcap_path, topic_name)
+        print(f"finished processing bag {bag_number}/{len(mcap_path_list)}")
+        return traces
+
+    bag_number_map = {path: idx + 1 for idx, path in enumerate(mcap_path_list)}
+    pool_args = [
+        (path, TOPIC_NAME, bag_number_map[path]) for path in mcap_path_list
+    ]
+
     start_t = time.time()
 
+    print("Extracting traces from bags")
     with Pool() as pool:
-        process_bag_with_topic = partial(process_bag, topic_name=TOPIC_NAME)
-        results = pool.map(process_bag_with_topic, mcap_path_list)
+        results = pool.map(process_bag_with_number, pool_args)
 
     gps_traces = [trace for result in results for trace in result]
 
@@ -226,14 +243,25 @@ if __name__ == "__main__":
     gps_traces = filter_points(gps_traces)
 
     # Add first point
-    first_point = convert_trace(gps_traces[0])
+    first_point = convert_trace(gps_traces[0][0])
     m = folium.Map(location=(first_point.lat, first_point.lon), zoom_start=10)
 
     # Precompute lat_per_meter constant
     lat_per_meter = 1 / 111320
 
+    # Draw uncertainty first so that markers are interactable
+    for trace, _ in gps_traces:
+        pt = convert_trace(trace)
+        draw_uncertainty_ellipse(
+            m,
+            (pt.lat, pt.lon),
+            pt.lon_sigma,
+            pt.lat_sigma,
+            lat_per_meter=lat_per_meter,
+        )
+
     # Add ellipses and markers for each coordinate
-    for trace in gps_traces:
+    for trace, bag_name in gps_traces:
         pt = convert_trace(trace)
         folium.Circle(
             location=(pt.lat, pt.lon),
@@ -242,14 +270,9 @@ if __name__ == "__main__":
             fill=True,
             fill_color="blue",
             fill_opacity=1,
+            popup=f"Bag #{bag_name}",
+            tooltip=f"Bag #{bag_name}",
         ).add_to(m)
-        draw_uncertainty_ellipse(
-            m,
-            (pt.lat, pt.lon),
-            pt.lon_sigma,
-            pt.lat_sigma,
-            lat_per_meter=lat_per_meter,
-        )
 
     # Save the map to an HTML file
     m.save(args.output_filename)
