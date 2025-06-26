@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
 from novatel_gps_msgs.msg import NovatelPosition
+from multiprocessing import Pool
+from functools import partial
 
 
 def extract_gps_traces(bag_path, topic_name):
@@ -31,13 +33,15 @@ def extract_gps_traces(bag_path, topic_name):
         print(f"Topic '{topic_name}' not found in the bag.")
         return []
 
-    traces = []
     msg_type = get_message(topic_type_dict[topic_name])
+
+    traces = []
     while reader.has_next():
         (topic, data, timestamp) = reader.read_next()
         if topic == topic_name:
             # Assuming the message type is a plain string
             traces.append(deserialize_message(data, msg_type))
+
     return traces
 
 
@@ -67,12 +71,10 @@ def draw_uncertainty_ellipse(
     color="grey",
     fill_color="grey",
     fill_opacity=0.2,
+    lat_per_meter=1 / 111320,
 ):
     """Draw an ellipse of uncertainty on a folium map."""
     # Convert uncertainty from meters to degrees (approximate)
-    lat_per_meter = (
-        1 / 111320
-    )  # One degree of latitude is approximately 111.32 km
     lon_per_meter = 1 / (
         40075000 * np.cos(np.radians(center[0])) / 360
     )  # One degree of longitude varies based on latitude
@@ -135,9 +137,10 @@ def filter_points(points, min_distance=3):
     filtered_points = [points[0]]
 
     for point in points[1:]:
-        last_point = filtered_points[-1]
+        last_trace, _ = filtered_points[-1]
+        curr_trace, _ = point
         distance = haversine(
-            last_point.lat, last_point.lon, point.lat, point.lon
+            last_trace.lat, last_trace.lon, curr_trace.lat, curr_trace.lon
         )
         if distance >= min_distance:
             filtered_points.append(point)
@@ -171,6 +174,18 @@ def print_elapsed_time(elapsed_time, total_rosbags):
     print(prompt)
 
 
+def process_bag(mcap_path, topic_name):
+    """Extract GPS traces from a single bag file."""
+    bag_name = os.path.basename(mcap_path)
+    # Attach bag_number to each trace
+    return [
+        (t, bag_name)
+        for t in list(
+            extract_gps_traces(bag_path=mcap_path, topic_name=topic_name)
+        )
+    ]
+
+
 if __name__ == "__main__":
     # Assume all bags belong to the same drive
     parser = argparse.ArgumentParser(
@@ -186,10 +201,9 @@ if __name__ == "__main__":
     mcap_path_list = []
     if os.path.isdir(input_path):
         # Get all .mcap files in the directory
-        for file_name in sorted(os.listdir(input_path)):
-            if file_name.endswith('.mcap'):
-                mcap_path = os.path.join(input_path, file_name)
-                mcap_path_list.append(mcap_path)
+        for entry in os.scandir(input_path):
+            if entry.is_file() and entry.name.endswith('.mcap'):
+                mcap_path_list.append(entry.path)
     elif os.path.isfile(input_path) and input_path.endswith('.mcap'):
         mcap_path_list.append(input_path)
     else:
@@ -204,19 +218,24 @@ if __name__ == "__main__":
     TOPIC_NAME = "/sensor/gps/bestpos"
     print(f"Script will search for GPS information in '{TOPIC_NAME}' topic\n")
 
-    gps_traces = []
-    idx = 0
+    def process_bag_with_number(args):
+        mcap_path, topic_name, bag_number = args
+        traces = process_bag(mcap_path, topic_name)
+        print(f"finished processing bag {bag_number}/{len(mcap_path_list)}")
+        return traces
+
+    bag_number_map = {path: idx + 1 for idx, path in enumerate(mcap_path_list)}
+    pool_args = [
+        (path, TOPIC_NAME, bag_number_map[path]) for path in mcap_path_list
+    ]
+
     start_t = time.time()
-    print(f'\r{idx}/{total_rosbags} rosbags processed', end='', flush=True)
-    for mcap_path in mcap_path_list:
-        gps_traces.extend(
-            extract_gps_traces(bag_path=mcap_path, topic_name=TOPIC_NAME)
-        )
-        idx += 1
-        end = '' if idx < total_rosbags else '\n'
-        print(
-            f'\r{idx}/{total_rosbags} rosbags processed', end=end, flush=True
-        )
+
+    print("Extracting traces from bags")
+    with Pool() as pool:
+        results = pool.map(process_bag_with_number, pool_args)
+
+    gps_traces = [trace for result in results for trace in result]
 
     assert len(gps_traces) > 1, "No GPS traces present in bag"
 
@@ -224,11 +243,25 @@ if __name__ == "__main__":
     gps_traces = filter_points(gps_traces)
 
     # Add first point
-    first_point = convert_trace(gps_traces[0])
+    first_point = convert_trace(gps_traces[0][0])
     m = folium.Map(location=(first_point.lat, first_point.lon), zoom_start=10)
 
+    # Precompute lat_per_meter constant
+    lat_per_meter = 1 / 111320
+
+    # Draw uncertainty first so that markers are interactable
+    for trace, _ in gps_traces:
+        pt = convert_trace(trace)
+        draw_uncertainty_ellipse(
+            m,
+            (pt.lat, pt.lon),
+            pt.lon_sigma,
+            pt.lat_sigma,
+            lat_per_meter=lat_per_meter,
+        )
+
     # Add ellipses and markers for each coordinate
-    for trace in gps_traces:
+    for trace, bag_name in gps_traces:
         pt = convert_trace(trace)
         folium.Circle(
             location=(pt.lat, pt.lon),
@@ -237,10 +270,9 @@ if __name__ == "__main__":
             fill=True,
             fill_color="blue",
             fill_opacity=1,
+            popup=f"Bag #{bag_name}",
+            tooltip=f"Bag #{bag_name}",
         ).add_to(m)
-        draw_uncertainty_ellipse(
-            m, (pt.lat, pt.lon), pt.lon_sigma, pt.lat_sigma
-        )
 
     # Save the map to an HTML file
     m.save(args.output_filename)
